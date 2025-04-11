@@ -1,94 +1,118 @@
-SHELL := /bin/bash
-# Choose python3 on Unix, python on Windows
-ifeq ($(OS),Windows_NT)
- PYTHON := python
- VENV_DIR := venv\\Scripts
-else
- PYTHON := python3
- VENV_DIR := venv/bin
-endif
+.PHONY: setup run clean lint format test venv docs help
 
-# Phony targets
-.PHONY: help setup install activate clean run test lint
+# Python interpreter to use
+PYTHON = python3
+
+# Virtual environment directory
+VENV = venv
+
+# Entry point for the application
+APP = app.py
+
+# Default target
+.DEFAULT_GOAL := help
 
 help:
 	@echo "Available commands:"
-	@echo " make setup - Create virtual environment and upgrade pip"
-	@echo " make install - Install dependencies (uses venv directly, no need to activate)"
-	@echo " make activate - Print instructions for manually activating the virtual environment"
-	@echo " make run - Run the AutoEDA Streamlit application"
-	@echo " make clean - Remove the virtual environment and cache files"
-	@echo " make deepclean - Comprehensive removal of all build artifacts and caches"
+	@echo "  make setup     - Set up development environment (create virtual environment and install dependencies)"
+	@echo "  make run       - Run the EDA application"
+	@echo "  make clean     - Remove virtual environment and cache files"
+	@echo "  make lint      - Run linting checks"
+	@echo "  make format    - Format code with Black and isort"
+	@echo "  make test      - Run tests"
+	@echo "  make venv      - Create virtual environment only"
+	@echo "  make docs      - Generate documentation"
 
-setup:
-	@echo "Setting up environment..."
-	@if [ ! -d venv ]; then \
-		echo "No virtual environment found. Creating 'venv'..."; \
-		$(PYTHON) -m venv venv; \
-	fi
-	@$(VENV_DIR)/pip install --upgrade pip
-	@echo "Setup complete!"
-	@echo "=============================================================================="
-	@echo "To activate your virtual environment manually, run one of the following:"
-ifeq ($(OS),Windows_NT)
-	@echo " call venv\\Scripts\\activate.bat (Windows CMD)"
-	@echo " or .\\venv\\Scripts\\Activate.ps1 (Windows PowerShell)"
-else
-	@echo " source venv/bin/activate (Unix/Linux/macOS)"
-endif
-	@echo "Then run 'make install' to install dependencies."
-	@echo "To deactivate the environment, run 'deactivate'."
-	@echo "To run the application without activating, use 'make run'."
-	@echo "=============================================================================="
-
-install:
+# Set up development environment
+setup: venv
 	@echo "Installing dependencies..."
-	@$(VENV_DIR)/pip install -r requirements.txt
-	@echo "Dependencies installed!"
+	@$(VENV)/bin/pip install -r requirements.txt
+	@$(VENV)/bin/pip install black isort pylint pytest sphinx
+	@echo "Setup complete."
 
-activate:
-	@echo "To activate your virtual environment, run one of the following:"
-ifeq ($(OS),Windows_NT)
-	@echo " call venv\\Scripts\\activate.bat (Windows CMD)"
-	@echo " or .\\venv\\Scripts\\Activate.ps1 (Windows PowerShell)"
-else
-	@echo " source venv/bin/activate (Unix/Linux/macOS)"
-endif
-	@echo "To deactivate when finished, run 'deactivate'."
+# Create virtual environment
+venv:
+	@echo "Creating virtual environment..."
+	@$(PYTHON) -m venv $(VENV)
+	@echo "Virtual environment created."
+	@echo "To activate the virtual environment, run 'source $(VENV)/bin/activate'."
+	@echo "To deactivate, run 'deactivate'."
+	@echo "To run the application, use 'make run' after activating the virtual environment."
+	@echo "To clean up, use 'make clean'."
+	@echo "To run tests, use 'make test' after activating the virtual environment."
+	@echo "To format code, use 'make format' after activating the virtual environment."
+	@echo "To run linting checks, use 'make lint' after activating the virtual environment."
+	@echo "To generate documentation, use 'make docs' after activating the virtual environment."
+	@echo "To build documentation, use 'make docs-build' after activating the virtual environment."
 
-clean:
-	@echo "Cleaning up basic project artifacts..."
-	@rm -rf venv 2>/dev/null || true
-	@rm -rf __pycache__ 2>/dev/null || true
-	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	@echo "Virtual environment and cache files removed."
 
-deepclean: clean
-	@echo "Performing deep clean..."
-	@rm -rf build 2>/dev/null || true
-	@rm -rf dist 2>/dev/null || true
-	@rm -rf *.egg-info 2>/dev/null || true
-	@rm -rf .pytest_cache 2>/dev/null || true
-	@rm -rf .coverage 2>/dev/null || true
-	@rm -rf htmlcov 2>/dev/null || true
-	@rm -rf .mypy_cache 2>/dev/null || true
-	@rm -rf *.html 2>/dev/null || true # Remove generated HTML reports
-	@echo "Deep clean completed. All build artifacts and caches removed."
-
+# Run the application
 run:
-	@echo "Running AutoEDA Streamlit application..."
-ifeq ($(OS),Windows_NT)
-	@$(VENV_DIR)\\streamlit run app.py
-else
-	@$(VENV_DIR)/streamlit run app.py
-endif
+	@echo "Starting EDA application..."
+	@if [ -d "$(VENV)" ]; then \
+		$(VENV)/bin/streamlit run $(APP); \
+	else \
+		streamlit run $(APP); \
+	fi
 
-generate-sample-report:
-	@echo "Generating a sample EDA report from test data..."
-ifeq ($(OS),Windows_NT)
-	@$(VENV_DIR)\\python -c "from autoeda import run_autoeda; run_autoeda('path/to/sample_data.csv', output_file='sample_report.html')"
-else
-	@$(VENV_DIR)/python -c "from autoeda import run_autoeda; run_autoeda('path/to/sample_data.csv', output_file='sample_report.html')"
-endif
-	@echo "Sample report generated as 'sample_report.html'"
+# Clean up
+clean:
+	@echo "Removing virtual environment and cache files..."
+	@rm -rf $(VENV)
+	@rm -rf __pycache__
+	@rm -rf .pytest_cache
+	@rm -rf components/__pycache__
+	@rm -rf utils/__pycache__
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@find . -type f -name "*.pyc" -delete
+	@echo "Cleanup complete."
+
+# Run linting checks
+lint:
+	@echo "Running linting checks..."
+	@if [ -d "$(VENV)" ]; then \
+		$(VENV)/bin/pylint *.py components/*.py utils/*.py; \
+	else \
+		pylint *.py components/*.py utils/*.py; \
+	fi
+
+# Format code
+format:
+	@echo "Formatting code with Black and isort..."
+	@if [ -d "$(VENV)" ]; then \
+		$(VENV)/bin/black . && $(VENV)/bin/isort .; \
+	else \
+		black . && isort .; \
+	fi
+
+# Run tests
+test:
+	@echo "Running tests..."
+	@if [ -d "$(VENV)" ]; then \
+		$(VENV)/bin/pytest; \
+	else \
+		pytest; \
+	fi
+
+# Build documentation
+docs:
+	@echo "Generating documentation..."
+	@if [ ! -d "docs" ]; then \
+		mkdir -p docs; \
+	fi
+	@if [ -d "$(VENV)" ]; then \
+		cd docs && $(VENV)/bin/sphinx-quickstart -q -p "EDA Tool" -a "Author" -v "0.1"; \
+	else \
+		cd docs && sphinx-quickstart -q -p "EDA Tool" -a "Author" -v "0.1"; \
+	fi
+	@echo "Documentation setup complete. Customize docs/conf.py and run 'make docs-build' to build."
+
+# Build documentation after setup
+docs-build:
+	@echo "Building documentation..."
+	@if [ -d "$(VENV)" ]; then \
+		cd docs && $(VENV)/bin/sphinx-build -M html . _build; \
+	else \
+		cd docs && sphinx-build -M html . _build; \
+	fi
+	@echo "Documentation built in docs/_build/html/"
